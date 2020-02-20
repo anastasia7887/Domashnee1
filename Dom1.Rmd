@@ -1,0 +1,121 @@
+---
+title: "Kinopoisk"
+author: "Kononova A.A."
+date: '20 февраля 2020 г '
+output: html_document
+---
+```{r, echo = T, message = F, warning = F}
+# Загрузка пакетов
+library('rvest')
+library('XML')                 # разбор XML-файлов
+library('RCurl')               # работа с HTML-страницами
+library('dplyr')               # инструменты трансформирования данных
+library('data.table')          # объекты "таблица данных"
+```
+Цель работы: создать файл формата .csv с лучшими фильмами за 2016 год по версии кинопоиска
+Загрузим URL страницы, с которой будем работать. И с помощью расширения для браузера находим селекторы нужных нам разделов. А именно ранг фильма, его название, режиссер, продолжительность, жанр, рейтинг по версии кинопоиска и IMDB и год выхода.
+
+```{r, echo = T, message = F, warning = F}
+# URL страницы для скраппинга
+url <- 'http://www.kinopoisk.ru/top/lists/316/filtr/all/sort/order/perpage/50/'
+
+# читаем HTML страницы
+webpage <- read_html(url)
+
+
+# скраппим страницу по селектору и преобразуем в текст
+rank_data <- webpage %>% html_nodes('.rangImp') %>% html_text 
+
+length(rank_data)      # размер вектора
+head(rank_data)        # первые шесть рангов
+
+# конвертируем ранги в числовые данные
+rank_data <- as.numeric(rank_data)
+head(rank_data)
+
+# отбор названий фильмов по селектору
+title_data <- webpage %>% html_nodes('.news .all') %>% html_text
+length(title_data)
+head(title_data)
+tail(title_data)
+remove <- c(51,52)
+title_data <- title_data[-remove]
+
+# режиссеры фильмов
+producer_data <- webpage %>% html_nodes('#itemList i') %>% html_text()
+length(producer_data)
+head(producer_data)
+
+# длительности фильмов
+runtime_data <- webpage %>% html_nodes('nobr') %>% html_text
+length(runtime_data)
+head(runtime_data)
+
+# жанры фильмов 
+genre_data <- webpage %>% html_nodes('div+ .gray_text') %>% html_text
+length(genre_data)
+head(genre_data)
+
+#Рейтинг на кинопоиске
+raiting_data <- webpage %>% html_nodes('.ratingBlock .all') %>% html_text
+length(raiting_data)
+head(raiting_data)
+
+#Рейтинг IMDB
+imdb_data <- webpage %>% html_nodes('.ratingBlock+ div') %>% html_text
+length(imdb_data)
+head(imdb_data)
+
+
+#Год выхода
+year_data <- webpage %>% html_nodes('.news div span') %>% html_text
+length(year_data)
+head(year_data)
+```
+
+Соеденим данные в один фрейм для дальнейшего редактирования
+
+```{r, echo = T, message = F, warning = F}
+DF_movies_short <- data.frame(Rank = rank_data, Title = title_data, 
+                              Producer = producer_data, 
+                              Runtime = runtime_data, 
+                              Genre = genre_data,  Raiting = raiting_data,
+                              IMDB = imdb_data, Year = year_data)
+# результат
+dim(DF_movies_short)
+str(DF_movies_short)
+```
+В нашем фрейме много лишних данных очистим его.
+
+```{r, echo = T, message = F, warning = F}
+DF.movies.short <- data.table(DF_movies_short)
+str(DF.movies.short) 
+
+head(DF.movies.short) 
+#Убираем из времени 'мин'
+DF.movies.short$Runtime <- as.numeric(gsub(' мин', '', DF.movies.short$Runtime)) 
+
+#Оставляем в рейтингах только числа
+DF.movies.short$IMDB <- as.numeric(gsub('[^0-9\\.]', '', DF.movies.short$IMDB)) 
+DF.movies.short$Raiting <- as.numeric(gsub('[^0-9\\.]', '', DF.movies.short$Raiting)) 
+
+#Избавняемся от лишнего в поле год
+DF.movies.short$Year <- gsub('(.*)[(](.*)$', '\\2', DF.movies.short$Year)
+DF.movies.short$Year <- gsub('(.*)[)].*$', '\\1', DF.movies.short$Year)
+
+#Убираем лишнее из жанра
+DF.movies.short$Genre <- gsub('(.*)[(](.*)$', '\\2', DF.movies.short$Genre)
+DF.movies.short$Genre <- gsub('(.*)[)].*$', '\\1', DF.movies.short$Genre)
+DF.movies.short$Genre <- gsub('[.]', '', DF.movies.short$Genre)
+
+#Смотрим результат
+head(DF.movies.short)
+```
+Теперь запишим полученный фрейм в файл формата .csv.
+```{r, echo = T, message = F, warning = F}
+DF.movies.short <- data.frame(DF.movies.short)
+str(DF.movies.short)
+# записываем в .csv
+write.csv(DF.movies.short, file = './data/DF_movies_short.csv', row.names = F)
+```
+
