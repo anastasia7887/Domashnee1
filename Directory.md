@@ -5,7 +5,7 @@ date: '24 февраля 2020 г '
 output: html_document
 ---
 
-# Таблица DF_movies_shot.csv
+# Справочник для DF_movies_shot.csv
 Файл DF_movies_shot.csv содержит в себе таблицу с рейтингом лучших фильмов 2016 года с сайта Кинопоиск. Данные получены с сайта Кинопоиск [http://www.kinopoisk.ru/top/lists/316/filtr/all/sort/order/perpage/50/]. Таблица состоит из 8 столбцов.  
 ## Сожержание столбцов:  
 *Rank* - ранк фильма в списке сайта Кинопоиск;  
